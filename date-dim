@@ -1,0 +1,58 @@
+let 
+
+    StartDate = #date(2022, 1, 6), 
+
+    EndDate = #date(Date.Year(DateTime.LocalNow())+2,12,31), 
+
+    CurrentDate = DateTime.Date(DateTime.FixedLocalNow()), 
+
+    ListDates = List.Dates(StartDate, Number.From(EndDate - StartDate)+1, #duration(1,0,0,0)), 
+
+    #"Converted to Table" = Table.FromList(ListDates, Splitter.SplitByNothing(), null, null, ExtraValues.Error), 
+
+    #"Renamed Columns as Date" = Table.RenameColumns(#"Converted to Table",{{"Column1", "Date"}}), 
+
+    #"Changed Type to Date" = Table.TransformColumnTypes(#"Renamed Columns as Date",{{"Date", type date}}), 
+
+    #"Added Calendar MonthNum" = Table.AddColumn(#"Changed Type to Date", "MonthNum", each Date.Month([Date]), Int64.Type), 
+
+    #"Added Month Name" = Table.AddColumn(#"Added Calendar MonthNum", "Month", each Text.Start(Date.MonthName([Date]),3), type text), 
+
+    #"Added Month Name Long" = Table.AddColumn(#"Added Month Name", "MonthLong", each Date.MonthName([Date]), type text), 
+
+    #"Added Calendar Quarter" = Table.AddColumn(#"Added Month Name Long", "Quarter", each "Q" & Text.From(Date.QuarterOfYear([Date]))), 
+
+    #"Added Calendar Year" = Table.AddColumn(#"Added Calendar Quarter", "Year", each Date.Year([Date]), Int64.Type), 
+
+    #"Added CurMonthOffset" = Table.AddColumn(#"Added Calendar Year", "CurMonthOffset", each ( Date.Year([Date]) - Date.Year(CurrentDate) ) * 12 
+
++ Date.Month([Date]) - Date.Month(CurrentDate), Int64.Type), 
+
+    #"Added CurQuarterOffset" = Table.AddColumn(#"Added CurMonthOffset", "CurQuarterOffset", each /*Year Difference*/ 
+
+       ( Date.Year([Date]) - Date.Year(CurrentDate) )*4 
+
+       /*Quarter Difference*/ 
+
+      + Number.RoundUp(Date.Month([Date]) / 3)  
+
+      - Number.RoundUp(Date.Month(CurrentDate) / 3), 
+
+Int64.Type), 
+
+    #"Added CurYearOffset" = Table.AddColumn(#"Added CurQuarterOffset", "CurYearOffset", each Date.Year([Date]) - Date.Year(CurrentDate), Int64.Type), 
+
+    #"Added MonthYear" = Table.AddColumn(#"Added CurYearOffset", "MonthYear", each [Month] & "-" & Text.End(Text.From([Year]),2)),
+    #"Added MonthYearLong" = Table.AddColumn(#"Added MonthYear", "MonthYearLong", each [Month] & "-" & Text.From([Year])), 
+
+    #"Added Custom" = Table.AddColumn(#"Added MonthYearLong", "QuarterYear", each [Quarter] & "-" & Text.From([Year])),
+    #"Duplicated Column" = Table.DuplicateColumn(#"Added Custom", "Date", "Date - Copy"),
+    #"Extracted Day" = Table.TransformColumns(#"Duplicated Column",{{"Date - Copy", Date.Day, Int64.Type}}),
+    #"Renamed Columns" = Table.RenameColumns(#"Extracted Day",{{"Date - Copy", "Day"}}),
+    #"ReSorted Rows by Date" = Table.Sort(#"Renamed Columns",{{"Date", Order.Ascending}}),
+    #"Added Custom1" = Table.AddColumn(#"ReSorted Rows by Date", "Custom", each Text.From([Day]) & "-" & [Month]),
+    #"Sorted Rows" = Table.Sort(#"Added Custom1",{{"Year", Order.Ascending}}) 
+
+in 
+
+    #"Sorted Rows"
